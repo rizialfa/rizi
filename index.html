@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Galeri Komunitas</title>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; font-family: sans-serif; }
+  body { background:#0f0f0f; color:white; }
+  header { padding:25px 20px; text-align:center; background: linear-gradient(135deg,#ff0055,#ffaa00); }
+  header h1 { font-size:28px; }
+  header p { opacity:0.9; margin-top:5px; font-size:14px; }
+  .info { text-align:center; padding:15px; font-size:13px; color:#aaa; }
+  .info b { color:white; }
+  .galeri { display:grid; grid-template-columns: 1fr 1fr; gap:10px; padding:10px; }
+  @media(min-width:600px){ .galeri{ grid-template-columns: 1fr 1fr 1fr 1fr; } }
+  .card { background:#1e1e1e; border-radius:12px; overflow:hidden; }
+  .card img { width:100%; height:220px; object-fit:cover; display:block; background:#333; }
+  .card .cap { padding:10px; }
+  .card .cap b { font-size:14px; display:block; }
+  .card .cap span { font-size:12px; color:#aaa; }
+  .btn-wa { display:block; margin:20px; background:#25D366; color:white; text-align:center; padding:15px; border-radius:50px; text-decoration:none; font-weight:bold; }
+  footer { text-align:center; padding:20px; color:#666; font-size:12px; }
+  .admin-bar { text-align:center; padding:10px; }
+  .btn-admin { background:#222; color:white; border:1px solid #444; padding:10px 18px; border-radius:50px; font-weight:bold; cursor:pointer; }
+  .btn-upload { background:#ff0055; color:white; border:none; padding:12px 20px; border-radius:50px; font-weight:bold; cursor:pointer; display:none; margin-top:10px; }
+  .upload-box { display:none; background:#1e1e1e; margin:10px; padding:15px; border-radius:12px; text-align:center; border:1px dashed #ff0055; }
+  .upload-box input, .upload-box button { width:100%; padding:12px; margin-top:10px; border-radius:10px; border:none; }
+  .upload-box input { background:#333; color:white; }
+  .upload-box button { background:#ff0055; color:white; font-weight:bold; cursor:pointer; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📸 GALERI KOMUNITAS</h1>
+  <p>Foto-foto pilihan - Hanya Admin yang bisa upload</p>
+</header>
+
+<div class="admin-bar">
+  <button class="btn-admin" onclick="loginAdmin()">🔒 LOGIN ADMIN</button><br>
+  <button class="btn-upload" id="btnUpload" onclick="bukaUpload()">+ UPLOAD FOTO BARU</button>
+  <div id="statusAdmin" style="font-size:12px; color:#aaa; margin-top:5px;">Mode Pengunjung - Hanya bisa melihat</div>
+</div>
+
+<div class="upload-box" id="uploadBox">
+  <b>Upload Foto Baru (Langsung ke GitHub!)</b><br>
+  <span style="font-size:12px; color:#aaa;">Foto akan dilihat semua orang!</span>
+  <input type="file" id="inputFoto" accept="image/*">
+  <input type="text" id="judulFoto" placeholder="Judul foto, contoh: Kumpul #5">
+  <button onclick="uploadKeGithub()">SIMPAN & BAGIKAN KE SEMUA ORANG</button>
+  <button onclick="logoutAdmin()" style="background:#333;">LOGOUT ADMIN</button>
+  <div id="uploadStatus" style="font-size:12px; margin-top:8px; color:#25D366;"></div>
+</div>
+
+<div class="info"><b>👀 Kamu hanya bisa melihat</b><br>Upload foto hanya bisa dilakukan oleh Admin</div>
+
+<div class="galeri" id="galeri"><p style="grid-column:1/-1; text-align:center; color:#aaa; padding:20px;">Memuat foto dari GitHub...</p></div>
+
+<a class="btn-wa" href="https://wa.me/6281234567890?text=Halo%20min,%20mau%20join%20komunitas!">💬 JOIN KOMUNITAS VIA WA</a>
+<footer>© 2026 Galeri Komunitas - Dibuat oleh Admin<br>Onlen via GitHub Pages • Upload via Web</footer>
+
+<script>
+// ===== GANTI 4 INI SAMA PUNYA LU! =====
+const GITHUB_USERNAME = "USERNAME-GITHUB-LU"; // contoh: iziii
+const GITHUB_REPO = "iziii"; // nama repo lu
+const GITHUB_BRANCH = "main"; // kalo branch lu master, ganti jadi master
+const GITHUB_TOKEN = "ghp_... TOKEN LU YANG PANJANG ITU";
+const PASSWORD_ADMIN = "rizi123"; // password buat buka tombol upload
+// =======================================
+
+let isAdmin = false;
+
+function loginAdmin(){
+  let pw = prompt("Masukkan Password Admin:");
+  if(pw === PASSWORD_ADMIN){
+    isAdmin = true;
+    document.getElementById("btnUpload").style.display = "inline-block";
+    document.getElementById("statusAdmin").innerHTML = "✅ Login sebagai Admin - Kamu bisa upload!";
+    document.getElementById("statusAdmin").style.color = "#25D366";
+    alert("Login berhasil!");
+  } else if(pw !== null){ alert("Password salah!"); }
+}
+function bukaUpload(){ document.getElementById("uploadBox").style.display = "block"; }
+function logoutAdmin(){
+  isAdmin = false;
+  document.getElementById("btnUpload").style.display = "none";
+  document.getElementById("uploadBox").style.display = "none";
+  document.getElementById("statusAdmin").innerHTML = "Mode Pengunjung - Hanya bisa melihat";
+}
+
+// Ambil list foto dari folder foto di GitHub - jadi orang lain bisa liat!
+async function loadFoto(){
+  const galeri = document.getElementById("galeri");
+  try{
+    const res = await fetch(`https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/foto?ref=${GITHUB_BRANCH}`);
+    const data = await res.json();
+    if(!Array.isArray(data) || data.length === 0){
+      galeri.innerHTML = "<p style='grid-column:1/-1; text-align:center; color:#aaa; padding:20px;'>Belum ada foto. Admin belum upload!</p>";
+      return;
+    }
+    galeri.innerHTML = "";
+    // Urutkan yang terbaru di atas
+    data.reverse().forEach(f => {
+      if(!f.name.match(/\.(jpg|jpeg|png|webp|gif)$/i)) return;
+      const div = document.createElement("div");
+      div.className = "card";
+      // Pake raw.githubusercontent biar langsung ke-load
+      const imgUrl = `https://raw.githubusercontent.com/${GITHUB_USERNAME}/${GITHUB_REPO}/${GITHUB_BRANCH}/foto/${encodeURIComponent(f.name)}`;
+      div.innerHTML = `<img src="${imgUrl}"><div class="cap"><b>${f.name}</b><span>Upload oleh Admin • Bisa dilihat semua orang</span></div>`;
+      galeri.appendChild(div);
+    });
+  }catch(e){
+    galeri.innerHTML = "<p style='grid-column:1/-1; text-align:center; color:#aaa; padding:20px;'>Gagal memuat foto. Cek USERNAME / REPO / TOKEN di kode!</p>";
+  }
+}
+
+function fileKeBase64(file){
+  return new Promise((resolve) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result.split(",")[1]);
+    r.readAsDataURL(file);
+  });
+}
+
+async function uploadKeGithub(){
+  const file = document.getElementById("inputFoto").files[0];
+  const judul = document.getElementById("judulFoto").value || Date.now();
+  if(!file){ alert("Pilih foto dulu!"); return; }
+  document.getElementById("uploadStatus").innerText = "Meng-upload ke GitHub... tunggu 5 detik...";
+  const base64 = await fileKeBase64(file);
+  const namaFile = Date.now() + "-" + judul.replace(/[^a-z0-9]/gi,"_") + "." + file.name.split(".").pop();
+  const res = await fetch(`https://api.github.com/repos/${GITHUB_USERNAME}/${GITHUB_REPO}/contents/foto/${encodeURIComponent(namaFile)}`, {
+    method: "PUT",
+    headers: { "Authorization": "token " + GITHUB_TOKEN, "Content-Type": "application/json" },
+    body: JSON.stringify({ message: "Upload foto baru: " + namaFile, content: base64, branch: GITHUB_BRANCH })
+  });
+  const hasil = await res.json();
+  if(res.ok){
+    document.getElementById("uploadStatus").innerText = "Berhasil! Foto sudah masuk GitHub, semua orang bisa liat!";
+    document.getElementById("uploadBox").style.display = "none";
+    document.getElementById("inputFoto").value = "";
+    setTimeout(loadFoto, 2000); // Tunggu GitHub update
+  } else {
+    alert("Gagal upload: " + (hasil.message || "Cek token / username / repo lu!"));
+    document.getElementById("uploadStatus").innerText = "";
+  }
+}
+
+loadFoto();
+</script>
+</body>
+</html>
