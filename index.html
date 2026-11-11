@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GALERI GUE</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;font-family:Arial}
+  body{background:#111;color:#fff;padding:12px;max-width:500px;margin:auto}
+  h1{text-align:center;margin:10px 0 5px}
+  .sub{text-align:center;color:#aaa;font-size:13px;margin-bottom:15px}
+  .box{background:#222;padding:15px;border-radius:15px;margin-bottom:15px;border:1px solid #333}
+  .box input, .box textarea{width:100%;padding:12px;border-radius:10px;border:none;margin:6px 0;background:#333;color:#fff;font-size:14px}
+  .box textarea{height:50px;resize:none}
+  .box button{background:#ff3b30;color:#fff;border:none;padding:13px;border-radius:25px;font-weight:bold;width:100%;cursor:pointer;font-size:15px}
+  #preview img, #preview video{width:100%;border-radius:10px;margin-top:8px;max-height:300px;object-fit:cover}
+  #status{font-size:12px;color:#00ff88;text-align:center;margin-top:8px;word-break:break-all}
+  #hasilKode{background:#000;color:#00ff88;padding:10px;border-radius:10px;font-size:11px;word-break:break-all;margin-top:10px;display:none;white-space:pre-wrap}
+  .tab{display:flex;gap:8px;margin-bottom:15px}
+  .tab button{flex:1;border:none;padding:10px;border-radius:20px;font-weight:bold;background:#333;color:#fff;cursor:pointer}
+  .tab button.active{background:#ff3b30}
+  .item{background:#1e1e1e;border:1px solid #333;border-radius:15px;padding:12px;margin-bottom:15px}
+  .item img, .item video{width:100%;border-radius:10px;margin-top:8px;max-height:400px;object-fit:cover;background:#000}
+  .item .jam{font-size:11px;color:#aaa;margin:2px 0 6px}
+</style>
+</head>
+<body>
+<h1>🏁 GALERI GUE 🏁</h1>
+<p class="sub">Cuma gue yang bisa upload, kalian cuma bisa liat!</p>
+
+<div class="box" id="kunciBox">
+  <h3>🔒 Upload Terkunci</h3>
+  <input id="passInput" type="password" placeholder="Password admin...">
+  <button onclick="bukaKunci()" style="background:#333;margin-top:8px">🔓 BUKA UPLOAD</button>
+  <p id="passSalah" style="font-size:12px;color:#ff3b30;text-align:center;margin-top:6px;display:none">❌ Password salah!</p>
+</div>
+
+<div class="box" id="uploadBox" style="display:none">
+  <h3>📤 Upload (Admin)</h3>
+  <input id="namaInput" placeholder="Nama lu">
+  <textarea id="judulInput" placeholder="Caption..."></textarea>
+  <input id="linkInput" placeholder="Tempel LINK foto / video dari Catbox...">
+  <div id="preview"></div>
+  <button onclick="buatKode()">🚀 BUAT KODE UPLOAD</button>
+  <div id="hasilKode"></div>
+  <button onclick="copyKode()" style="background:#00aa55;margin-top:8px;display:none" id="btnCopy">📋 COPY KODE</button>
+  <p id="status"></p>
+  <p style="font-size:12px;color:#aaa;margin-top:10px">Cara upload:<br>1. Tempel link -> Buat Kode -> Copy<br>2. Buka db.json di GitHub lu -> Edit -> Paste -> Commit<br>3. Temen lu refresh link GitHub lu, langsung liat!</p>
+  <button onclick="kunciLagi()" style="background:#333;margin-top:10px">🔒 KUNCI LAGI</button>
+</div>
+
+<div class="tab">
+  <button id="btnSemua" class="active" onclick="filterFeed('semua')">SEMUA</button>
+  <button id="btnFoto" onclick="filterFeed('foto')">📸 FOTO</button>
+  <button id="btnVideo" onclick="filterFeed('video')">🎬 VIDEO</button>
+</div>
+
+<h3 style="margin-bottom:10px">📱 Galeri Buat Semua Orang Liat</h3>
+<div id="feed">Lagi loading...</div>
+
+<script>
+const PASSWORD_GUE = "gue123";
+let galeri = [];
+let filterMode = 'semua';
+let isAdmin = false;
+let kodeTerakhir = "";
+
+function bukaKunci(){
+  if(document.getElementById('passInput').value === PASSWORD_GUE){
+    isAdmin = true;
+    document.getElementById('kunciBox').style.display = 'none';
+    document.getElementById('uploadBox').style.display = 'block';
+    render();
+  } else document.getElementById('passSalah').style.display = 'block';
+}
+function kunciLagi(){
+  isAdmin = false;
+  document.getElementById('kunciBox').style.display = 'block';
+  document.getElementById('uploadBox').style.display = 'none';
+  render();
+}
+function filterFeed(m){
+  filterMode = m;
+  document.getElementById('btnSemua').classList.remove('active');
+  document.getElementById('btnFoto').classList.remove('active');
+  document.getElementById('btnVideo').classList.remove('active');
+  if(m==='semua') document.getElementById('btnSemua').classList.add('active');
+  if(m==='foto') document.getElementById('btnFoto').classList.add('active');
+  if(m==='video') document.getElementById('btnVideo').classList.add('active');
+  render();
+}
+document.getElementById('linkInput').oninput = (e) => {
+  const link = e.target.value.trim();
+  if(!link){ document.getElementById('preview').innerHTML=""; return; }
+  const isVideo = link.includes('.mp4')||link.includes('.mov')||link.includes('.webm');
+  document.getElementById('preview').innerHTML = isVideo ? `<video src="${link}" controls></video>` : `<img src="${link}">`;
+};
+async function loadGaleri(){
+  try{
+    const res = await fetch('db.json?t='+Date.now());
+    galeri = await res.json();
+    render();
+  }catch(e){ document.getElementById('feed').innerHTML = "Belum ada upload-an!"; }
+}
+function buatKode(){
+  const nama = document.getElementById('namaInput').value || "Gue";
+  const judul = document.getElementById('judulInput').value || "";
+  const link = document.getElementById('linkInput').value.trim();
+  if(!link){ alert("Tempel link dulu!"); return; }
+  const isVideo = link.includes('.mp4')||link.includes('.mov')||link.includes('.webm');
+  const baru = { nama, judul, link, isVideo, jam: new Date().toLocaleString('id-ID') };
+  const semua = [baru, ...galeri];
+  kodeTerakhir = JSON.stringify(semua, null, 2);
+  document.getElementById('hasilKode').style.display = 'block';
+  document.getElementById('hasilKode').textContent = kodeTerakhir;
+  document.getElementById('btnCopy').style.display = 'block';
+  document.getElementById('status').textContent = "✅ Kode udah jadi! Klik COPY, terus paste ke db.json di GitHub!";
+}
+function copyKode(){
+  navigator.clipboard.writeText(kodeTerakhir);
+  document.getElementById('status').textContent = "✅ Udah ke-copy! Sekarang buka db.json di GitHub, paste, Commit!";
+}
+function render(){
+  const feed = document.getElementById('feed');
+  feed.innerHTML = "";
+  let f = galeri;
+  if(filterMode==='foto') f = galeri.filter(i=>!i.isVideo);
+  if(filterMode==='video') f = galeri.filter(i=>i.isVideo);
+  if(f.length===0){ feed.innerHTML = "Belum ada apa-apa."; return; }
+  f.forEach(item=>{
+    const media = item.isVideo ? `<video src="${item.link}" controls loop playsinline></video>` : `<img src="${item.link}">`;
+    const div = document.createElement('div');
+    div.className='item';
+    div.innerHTML = `<div style="font-weight:bold">${item.nama}</div><div class="jam">${item.jam} • ${item.isVideo?'🎬 VIDEO':'📸 FOTO'}</div><div style="font-size:14px">${item.judul}</div>${media}`;
+    feed.appendChild(div);
+  });
+}
+loadGaleri();
+</script>
+</body>
+</html>
